@@ -287,7 +287,8 @@ class QueryMatching(nn.Module):
                 query1 = self.query_CA[level](query=query1, key=src_feat)
                 query2 = self.query_CA[level](query=query2, key=tgt_feat)
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
-        
+
+        # Fuse Block
         return query1, query2
 
 if __name__ == "__main__" :
