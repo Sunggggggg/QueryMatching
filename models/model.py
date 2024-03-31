@@ -343,7 +343,7 @@ class QueryMatching(nn.Module):
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
 
         flow = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
-
+        print(flow.shape)
         return flow
 
 if __name__ == "__main__" :
