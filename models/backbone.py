@@ -137,4 +137,4 @@ class SimpleResnet(nn.Module):
         layer3 = self.conv3(layer3)   # hidden_dim
         layer4 = self.conv4(layer4)   # hidden_dim
 
-        return [layer4, layer3, layer2, layer1]
+        return [layer3, layer2, layer1]

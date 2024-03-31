@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from .backbone import FeatureExtractionHyperPixel, SimpleResnet
 from .pos_encoding import PositionEmbeddingSine
+from .mod import unnormalise_and_convert_mapping_to_flow
 
 class QueryActivation(nn.Module):
     def __init__(self, model_dim, nhead=8, dropout=0.0) :
@@ -261,19 +262,25 @@ class QueryMatching(nn.Module):
         exp_x_sum = exp_x.sum(dim=d, keepdim=True)
         return exp_x / exp_x_sum
 
-    def soft_argmax(self, src_heatmap, tgt_heatmap, beta=0.02):
+    def soft_argmax(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
         r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)
-        corr : [B, Q, ht, wt]
+        src_heatmap, tgt_heatmap [B, Q, hw]
         '''
-        b,_,h,w = src_heatmap.size()
+        b = src_heatmap.shape[0]
+        corr = src_heatmap.permute(0, 2, 1) @ tgt_heatmap   # [B, hw, Q] [B, Q, hw]
 
-        src_max_heatmap = self.softmax_with_temperature(src_heatmap, beta=beta, d=1)    # [B, Q, hs, ws]
-        tgt_max_heatmap = self.softmax_with_temperature(tgt_heatmap, beta=beta, d=1)    # [B, Q, ht, wt]
-        _, src_max_idx = torch.max(src_max_heatmap, dim=1)                # [B, h, w]
-        _, tgt_max_idx = torch.max(tgt_max_heatmap, dim=1)                # [B, h, w]
+        corr = self.softmax_with_temperature(corr, beta=beta, d=1)
+        corr = corr.view(-1,h,w,h,w) # (target hxw) x (source hxw)
+
+        grid_x = corr.sum(dim=1, keepdim=False) # marginalize to x-coord. [B, ws, ht, wt]
+        x_normal = self.x_normal.expand(b,w)
+        x_normal = x_normal.view(b,w,1,1)
+        grid_x = (grid_x*x_normal).sum(dim=1, keepdim=True) # b x 1 x h x w
         
-        src_max_idx[:, ]
-        
+        grid_y = corr.sum(dim=2, keepdim=False) # marginalize to y-coord.
+        y_normal = self.y_normal.expand(b,h)
+        y_normal = y_normal.view(b,h,1,1)
+        grid_y = (grid_y*y_normal).sum(dim=1, keepdim=True) # b x 1 x h x w
         return grid_x, grid_y
 
     def forward(self, source, target):
@@ -294,7 +301,6 @@ class QueryMatching(nn.Module):
 
         # Feature map
         src_feats, tgt_feats = self.feature_extraction(source), self.feature_extraction(target)  # [l, B, dim, H, W] small to large
-        assert len(src_feats) + 1== self.num_stage, "Check feature map levels"
 
         for d in range(self.depth):
             query1 = query1 + query1_pos
@@ -320,15 +326,18 @@ class QueryMatching(nn.Module):
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
 
         # Fuse Block
-        src_feat, tgt_feat = src_feats[-1], tgt_feats[-1]
+        src_feat, tgt_feat = src_feats[0], tgt_feats[0]
         h, w = src_feat.shape[-2:]
         src_feat = src_feat.flatten(2) # [B, e, hw]
         tgt_feat = tgt_feat.flatten(2)
         src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
-        tgt_heatmap = tgt_heatmap.reshape(B, -1, h, w)
-        self.soft_argmax(src_heatmap, tgt_heatmap)
-        return 
+
+        grid_x, grid_y = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
+        flow = torch.cat((grid_x, grid_y), dim=1)
+        flow = unnormalise_and_convert_mapping_to_flow(flow)
+
+        return flow
 
 if __name__ == "__main__" :
     x = torch.rand((1, 3, 256, 256))
