@@ -268,25 +268,24 @@ class QueryMatching(nn.Module):
         return exp_x / exp_x_sum
 
     def soft_argmax(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
-        r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)
+        r'''
         src_heatmap, tgt_heatmap [B, Q, hw]
         '''
         b = src_heatmap.shape[0]
-        corr = src_heatmap.permute(0, 2, 1) @ tgt_heatmap   # [B, hw, Q] [B, Q, hw]
 
-        corr = self.softmax_with_temperature(corr, beta=beta, d=1)
-        corr = corr.view(-1,h,w,h,w) # (target hxw) x (source hxw)
+        _, src_max_idx = torch.max(src_heatmap, dim=-1, keepdim=True)   # [B, Q, 1]
+        src_max_row = src_max_idx // h
+        src_max_col = src_max_idx % h    # [B, Q, 1]
 
-        grid_x = corr.sum(dim=1, keepdim=False) # marginalize to x-coord. [B, ws, ht, wt]
-        x_normal = self.x_normal.expand(b,w)
-        x_normal = x_normal.view(b,w,1,1)
-        grid_x = (grid_x*x_normal).sum(dim=1, keepdim=True) # b x 1 x h x w
+        _, tgt_max_idx = torch.max(tgt_heatmap, dim=-1, keepdim=True)   # [B, Q, 1]
+        tgt_max_row = tgt_max_idx // h
+        tgt_max_col = tgt_max_idx % h    # [B, Q, 1]
         
-        grid_y = corr.sum(dim=2, keepdim=False) # marginalize to y-coord.
-        y_normal = self.y_normal.expand(b,h)
-        y_normal = y_normal.view(b,h,1,1)
-        grid_y = (grid_y*y_normal).sum(dim=1, keepdim=True) # b x 1 x h x w
-        return grid_x, grid_y
+        flow_map = torch.zeros((b, 2, h, w), device=src_heatmap.device, dtype=src_heatmap.device)   # [B, 2, h, w]
+        flow_map[:, 0, tgt_max_row, tgt_max_col] = src_max_col - tgt_max_col
+        flow_map[:, 0, tgt_max_row, tgt_max_col] = src_max_row - tgt_max_row
+        
+        return flow_map
 
     def forward(self, source, target):
         B = source.shape[0]
@@ -339,9 +338,7 @@ class QueryMatching(nn.Module):
         src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
 
-        grid_x, grid_y = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
-        flow = torch.cat((grid_x, grid_y), dim=1)
-        flow = unnormalise_and_convert_mapping_to_flow(flow)
+        flow = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
 
         return flow
 
