@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import resnet
+import models.resnet as resnet
 from operator import add
 from functools import reduce
 
@@ -81,33 +81,40 @@ class UpConv(nn.Module):
 class SimpleResnet(nn.Module):
     """ Resnet backbone / Using Uncov
     """
-    def __init__(self, feature_size=256, freeze=True) :
+    def __init__(self, feature_size=256, freeze=True, fuse_layer=False) :
         super(SimpleResnet, self).__init__()
-        #
+        # backbone
         self.backbone = resnet.resnet101(pretrained=True)
         resnet_feat_dim = [256, 512, 1024, 2048]
         if freeze:
             for param in self.backbone.parameters():
                 param.requires_grad = False
-        #
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(resnet_feat_dim[0], feature_size, kernel_size=3, stride=1, padding=1, bias=False, groups=1),
-            nn.BatchNorm2d(feature_size),
-            nn.ReLU(inplace=True)
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(resnet_feat_dim[1], feature_size, kernel_size=3, stride=1, padding=1, bias=False, groups=1),
-            nn.BatchNorm2d(feature_size),
-            nn.ReLU(inplace=True)
-        )
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(resnet_feat_dim[2], resnet_feat_dim[1], kernel_size=3, stride=1, padding=1, bias=False, groups=1),
-            nn.BatchNorm2d(resnet_feat_dim[1]),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(resnet_feat_dim[1], feature_size, kernel_size=3, stride=1, padding=1, bias=False, groups=1),
-            nn.BatchNorm2d(feature_size),
-            nn.ReLU(inplace=True)
-        )
+        
+        # Fusing
+        if fuse_layer :
+            self.conv1 = nn.Sequential(
+                nn.Conv2d(resnet_feat_dim[0], feature_size, kernel_size=3, stride=1, padding=1, bias=False, groups=1),
+                nn.BatchNorm2d(feature_size),
+                nn.ReLU(inplace=True)
+            )
+            self.conv2 = nn.Sequential(
+                nn.Conv2d(resnet_feat_dim[1], feature_size, kernel_size=3, stride=1, padding=1, bias=False, groups=1),
+                nn.BatchNorm2d(feature_size),
+                nn.ReLU(inplace=True)
+            )
+            self.conv3 = nn.Sequential(
+                nn.Conv2d(resnet_feat_dim[2], resnet_feat_dim[1], kernel_size=3, stride=1, padding=1, bias=False, groups=1),
+                nn.BatchNorm2d(resnet_feat_dim[1]),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(resnet_feat_dim[1], feature_size, kernel_size=3, stride=1, padding=1, bias=False, groups=1),
+                nn.BatchNorm2d(feature_size),
+                nn.ReLU(inplace=True)
+            )
+        else :
+            self.conv1 = nn.Conv2d(resnet_feat_dim[0], feature_size, kernel_size=1, stride=1, padding=0)
+            self.conv2 = nn.Conv2d(resnet_feat_dim[1], feature_size, kernel_size=1, stride=1, padding=0)
+            self.conv3 = nn.Conv2d(resnet_feat_dim[2], feature_size, kernel_size=1, stride=1, padding=0)
+            self.conv4 = nn.Conv2d(resnet_feat_dim[3], feature_size, kernel_size=1, stride=1, padding=0)
         
     def forward(self, x):
         """ 
@@ -123,9 +130,11 @@ class SimpleResnet(nn.Module):
         layer1 = self.backbone.layer1(x)        # [B, 256, h/4, w/4]
         layer2 = self.backbone.layer2(layer1)   # [B, 512, h/8, w/8]
         layer3 = self.backbone.layer3(layer2)   # [B, 1024, h/16, w/16]
+        layer4 = self.backbone.layer4(layer3)   # [B, 2048, h/32, w/32]
 
         layer1 = self.conv1(layer1)   # hidden_dim
         layer2 = self.conv2(layer2)   # hidden_dim
         layer3 = self.conv3(layer3)   # hidden_dim
+        layer4 = self.conv4(layer4)   # hidden_dim
 
-        return [layer3, layer2, layer1][::-1]
+        return [layer4, layer3, layer2, layer1]

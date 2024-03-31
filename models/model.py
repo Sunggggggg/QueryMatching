@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-from backbone import FeatureExtractionHyperPixel, SimpleResnet
-from pos_encoding import PositionEmbeddingSine
+import numpy as np
+from .backbone import FeatureExtractionHyperPixel, SimpleResnet
+from .pos_encoding import PositionEmbeddingSine
 
 class QueryActivation(nn.Module):
     def __init__(self, model_dim, nhead=8, dropout=0.0) :
@@ -243,8 +244,38 @@ class QueryMatching(nn.Module):
         for _ in range(self.total_depth):
             self.query_CA.append(QueryActivation(model_dim=feature_size, nhead=8))
             self.query_aggregation.append(QueryAggregation(model_dim=feature_size, num_queries=num_queries))
+
+        #####################################
+        # Norm
+        #####################################
+        self.x_normal = np.linspace(-1,1,self.feature_size)
+        self.x_normal = nn.Parameter(torch.tensor(self.x_normal, dtype=torch.float, requires_grad=False))
+        self.y_normal = np.linspace(-1,1,self.feature_size)
+        self.y_normal = nn.Parameter(torch.tensor(self.y_normal, dtype=torch.float, requires_grad=False))
             
+    def softmax_with_temperature(self, x, beta, d = 1):
+        r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)'''
+        M, _ = x.max(dim=d, keepdim=True)
+        x = x - M # subtract maximum value for stability
+        exp_x = torch.exp(x/beta)
+        exp_x_sum = exp_x.sum(dim=d, keepdim=True)
+        return exp_x / exp_x_sum
+
+    def soft_argmax(self, src_heatmap, tgt_heatmap, beta=0.02):
+        r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)
+        corr : [B, Q, ht, wt]
+        '''
+        b,_,h,w = src_heatmap.size()
+
+        src_max_heatmap = self.softmax_with_temperature(src_heatmap, beta=beta, d=1)    # [B, Q, hs, ws]
+        tgt_max_heatmap = self.softmax_with_temperature(tgt_heatmap, beta=beta, d=1)    # [B, Q, ht, wt]
+        _, src_max_idx = torch.max(src_max_heatmap, dim=1)                # [B, h, w]
+        _, tgt_max_idx = torch.max(tgt_max_heatmap, dim=1)                # [B, h, w]
         
+        src_max_idx[:, ]
+        
+        return grid_x, grid_y
+
     def forward(self, source, target):
         B = source.shape[0]
 
@@ -263,7 +294,7 @@ class QueryMatching(nn.Module):
 
         # Feature map
         src_feats, tgt_feats = self.feature_extraction(source), self.feature_extraction(target)  # [l, B, dim, H, W] small to large
-        assert len(src_feats) == self.num_stage, "Check feature map levels"
+        assert len(src_feats) + 1== self.num_stage, "Check feature map levels"
 
         for d in range(self.depth):
             query1 = query1 + query1_pos
@@ -289,7 +320,15 @@ class QueryMatching(nn.Module):
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
 
         # Fuse Block
-        return query1, query2
+        src_feat, tgt_feat = src_feats[-1], tgt_feats[-1]
+        h, w = src_feat.shape[-2:]
+        src_feat = src_feat.flatten(2) # [B, e, hw]
+        tgt_feat = tgt_feat.flatten(2)
+        src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
+        tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
+        tgt_heatmap = tgt_heatmap.reshape(B, -1, h, w)
+        self.soft_argmax(src_heatmap, tgt_heatmap)
+        return 
 
 if __name__ == "__main__" :
     x = torch.rand((1, 3, 256, 256))
