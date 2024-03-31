@@ -258,6 +258,8 @@ class QueryMatching(nn.Module):
         self.x_normal = nn.Parameter(torch.tensor(self.x_normal, dtype=torch.float, requires_grad=False))
         self.y_normal = np.linspace(-1,1,self.feature_size)
         self.y_normal = nn.Parameter(torch.tensor(self.y_normal, dtype=torch.float, requires_grad=False))
+        self.flow_map = np.zeros((2, self.feature_size, self.feature_size))
+        self.flow_map = nn.Parameter(torch.tensor(self.flow_map, dtype=torch.float, requires_grad=False))
             
     def softmax_with_temperature(self, x, beta, d = 1):
         r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)'''
@@ -281,7 +283,7 @@ class QueryMatching(nn.Module):
         tgt_max_row = tgt_max_idx // h
         tgt_max_col = tgt_max_idx % h    # [B, Q]
         
-        flow_map = torch.zeros((B, 2, h, w))   # [B, 2, h, w]
+        flow_map = self.flow_map.repeat(B, 1, 1, 1)   # [B, 2, h, w]
         for b in range(B):
             src_row, src_col = src_max_row[b], src_max_col[b]   # [Q]
             tgt_row, tgt_col = tgt_max_row[b], tgt_max_col[b]   # [Q]
