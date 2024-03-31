@@ -281,7 +281,7 @@ class QueryMatching(nn.Module):
         tgt_max_row = tgt_max_idx // h
         tgt_max_col = tgt_max_idx % h    # [B, Q]
         
-        flow_map = torch.zeros((B, 2, h, w), device=tgt_heatmap.device, dtype=tgt_heatmap.dtype)   # [B, 2, h, w]
+        flow_map = torch.zeros((B, 2, h, w))   # [B, 2, h, w]
         for b in range(B):
             src_row, src_col = src_max_row[b], src_max_col[b]   # [Q]
             tgt_row, tgt_col = tgt_max_row[b], tgt_max_col[b]   # [Q]
