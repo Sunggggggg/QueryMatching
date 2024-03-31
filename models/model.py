@@ -205,7 +205,9 @@ class QueryAggregation(nn.Module):
 class QueryMatching(nn.Module):
     def __init__(self, 
                  backbone_name="simple_resnet",
-                 hyperpixel_ids=[0,8,20,21,26,28,29,30], feat_dim=256, freeze=True, # backbone
+                 hyperpixel_ids=[0,8,20,21,26,28,29,30], 
+                 feat_dim=256, 
+                 freeze=True,
                  depth=4,
                  num_queries=64,
                  feature_size=16,
@@ -213,6 +215,7 @@ class QueryMatching(nn.Module):
         super(QueryMatching, self).__init__()
         self.num_queries = num_queries
         self.depth = depth
+        self.feature_size = feature_size
         #####################################
         # Backbone 
         #####################################
