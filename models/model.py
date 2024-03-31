@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from .backbone import FeatureExtractionHyperPixel, SimpleResnet
 from .pos_encoding import PositionEmbeddingSine
-from .mod import unnormalise_and_convert_mapping_to_flow
+from .mod import FeatureL2Norm, unnormalise_and_convert_mapping_to_flow
 
 class QueryActivation(nn.Module):
     def __init__(self, model_dim, nhead=8, dropout=0.0) :
@@ -253,6 +253,7 @@ class QueryMatching(nn.Module):
         #####################################
         # Norm
         #####################################
+        self.l2norm = FeatureL2Norm()
         self.x_normal = np.linspace(-1,1,self.feature_size)
         self.x_normal = nn.Parameter(torch.tensor(self.x_normal, dtype=torch.float, requires_grad=False))
         self.y_normal = np.linspace(-1,1,self.feature_size)
@@ -314,6 +315,7 @@ class QueryMatching(nn.Module):
 
             for s in range(self.num_stage):
                 src_feat, tgt_feat = src_feats[s], tgt_feats[s]
+                src_feat, tgt_feat = self.l2norm(src_feat), self.l2norm(tgt_feat)
                 feat_pos = self.feat_pos(src_feat)
 
                 query1 = query1 + query1_pos    # [B, Q, e]
@@ -336,7 +338,7 @@ class QueryMatching(nn.Module):
         tgt_feat = tgt_feat.flatten(2)
         src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
-
+        print(h, w)
         grid_x, grid_y = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
         flow = torch.cat((grid_x, grid_y), dim=1)
         flow = unnormalise_and_convert_mapping_to_flow(flow)
