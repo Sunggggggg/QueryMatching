@@ -285,8 +285,9 @@ class QueryMatching(nn.Module):
         for b in range(B):
             src_row, src_col = src_max_row[b], src_max_col[b]   # [Q]
             tgt_row, tgt_col = tgt_max_row[b], tgt_max_col[b]   # [Q]
-            flow_map[b, 0, tgt_row, tgt_col] = src_row - tgt_row
-            flow_map[b, 1, tgt_row, tgt_col] = src_col - tgt_col
+            for sr, sc, tr, tc in zip(src_row, src_col, tgt_row, tgt_col):
+                flow_map[b, 0, tr, tc] = sr - tr
+                flow_map[b, 1, tr, tc] = sc - tc
         
         return flow_map
 
