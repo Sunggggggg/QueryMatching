@@ -205,9 +205,10 @@ class QueryAggregation(nn.Module):
 class QueryMatching(nn.Module):
     def __init__(self, 
                  backbone_name="simple_resnet",
-                 hyperpixel_ids=[0,8,20,21,26,28,29,30], feature_size=256, freeze=True, # backbone
+                 hyperpixel_ids=[0,8,20,21,26,28,29,30], feat_dim=256, freeze=True, # backbone
                  depth=4,
                  num_queries=64,
+                 feature_size=16,
                  ):
         super(QueryMatching, self).__init__()
         self.num_queries = num_queries
@@ -216,19 +217,19 @@ class QueryMatching(nn.Module):
         # Backbone 
         #####################################
         if backbone_name == "simple_resnet" :
-            self.feature_extraction = SimpleResnet(feature_size, freeze)
+            self.feature_extraction = SimpleResnet(feat_dim, freeze)
             self.num_stage = 3   # Fix
         else :  # CATs Backbone
-            self.feature_extraction = FeatureExtractionHyperPixel(hyperpixel_ids, feature_size, freeze) # 8
+            self.feature_extraction = FeatureExtractionHyperPixel(hyperpixel_ids, feat_dim, freeze) # 8
             self.num_stage = len(hyperpixel_ids)
         self.total_depth = self.num_stage * depth
-        self.feat_pos = PositionEmbeddingSine(feature_size//2)
+        self.feat_pos = PositionEmbeddingSine(feat_dim//2)
 
         #####################################
         # Query 
         #####################################
-        self.query = nn.Parameter(torch.zeros(num_queries, feature_size), requires_grad=True)
-        self.query_emb = nn.Parameter(torch.rand(num_queries, feature_size), requires_grad=True)
+        self.query = nn.Parameter(torch.zeros(num_queries, feat_dim), requires_grad=True)
+        self.query_emb = nn.Parameter(torch.rand(num_queries, feat_dim), requires_grad=True)
         self.query_emb1 = nn.Parameter(torch.rand(num_queries, 1), requires_grad=True)
         self.query_emb2 = nn.Parameter(torch.rand(num_queries, 1), requires_grad=True)
         
@@ -240,11 +241,11 @@ class QueryMatching(nn.Module):
         self.query_aggregation = nn.ModuleList()
 
         for _ in range(self.depth):
-            self.query_SA.append(QueryActivation(model_dim=feature_size, nhead=8))    # Self Atttention
+            self.query_SA.append(QueryActivation(model_dim=feat_dim, nhead=8))    # Self Atttention
 
         for _ in range(self.total_depth):
-            self.query_CA.append(QueryActivation(model_dim=feature_size, nhead=8))
-            self.query_aggregation.append(QueryAggregation(model_dim=feature_size, num_queries=num_queries))
+            self.query_CA.append(QueryActivation(model_dim=feat_dim, nhead=8))
+            self.query_aggregation.append(QueryAggregation(model_dim=feat_dim, num_queries=num_queries))
 
         #####################################
         # Norm

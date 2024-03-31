@@ -70,6 +70,8 @@ if __name__ == "__main__":
 
     # Queries
     parser.add_argument('--num_queries', type=int, default=32)
+    parser.add_argument('--feat_dim', type=int, default=256)
+    
 
 
     # Seed
@@ -99,7 +101,7 @@ if __name__ == "__main__":
     # Model
     if args.freeze:
         print('Backbone frozen!')
-    model = QueryMatching(feature_size=args.feature_size, freeze=True, num_queries=args.num_queries)
+    model = QueryMatching(freeze=True, num_queries=args.num_queries)
     param_model = [param for name, param in model.named_parameters() if 'feature_extraction' not in name]
     param_backbone = [param for name, param in model.named_parameters() if 'feature_extraction' in name]
 
