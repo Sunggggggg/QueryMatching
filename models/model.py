@@ -281,7 +281,7 @@ class QueryMatching(nn.Module):
         tgt_max_row = tgt_max_idx // h
         tgt_max_col = tgt_max_idx % h    # [B, Q, 1]
         
-        flow_map = torch.zeros((b, 2, h, w), device=src_heatmap.device, dtype=src_heatmap.device)   # [B, 2, h, w]
+        flow_map = torch.zeros((b, 2, h, w), device=src_heatmap.device, dtype=src_heatmap.dtype)   # [B, 2, h, w]
         flow_map[:, 0, tgt_max_row, tgt_max_col] = src_max_col - tgt_max_col
         flow_map[:, 0, tgt_max_row, tgt_max_col] = src_max_row - tgt_max_row
         
@@ -331,7 +331,7 @@ class QueryMatching(nn.Module):
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
 
         # Fuse Block
-        src_feat, tgt_feat = src_feats[0], tgt_feats[0]
+        src_feat, tgt_feat = src_feats[-1], tgt_feats[-1]
         h, w = src_feat.shape[-2:]
         src_feat = src_feat.flatten(2) # [B, e, hw]
         tgt_feat = tgt_feat.flatten(2)
