@@ -338,7 +338,7 @@ class QueryMatching(nn.Module):
         tgt_feat = tgt_feat.flatten(2)
         src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
-        print(h, w)
+
         grid_x, grid_y = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
         flow = torch.cat((grid_x, grid_y), dim=1)
         flow = unnormalise_and_convert_mapping_to_flow(flow)
