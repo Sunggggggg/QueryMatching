@@ -131,7 +131,7 @@ class SimpleResnet(nn.Module):
         layer2 = self.backbone.layer2(layer1)   # [B, 512, h/8, w/8]
         layer3 = self.backbone.layer3(layer2)   # [B, 1024, h/16, w/16]
         layer4 = self.backbone.layer4(layer3)   # [B, 2048, h/32, w/32]
-
+        print(layer3.shape, layer4.shape)
         layer1 = self.conv1(layer1)   # hidden_dim
         layer2 = self.conv2(layer2)   # hidden_dim
         layer3 = self.conv3(layer3)   # hidden_dim
