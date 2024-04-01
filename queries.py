@@ -14,6 +14,9 @@ from utils_training.utils import log_args, boolean_string, flow2kps
 from models import QueryMatching
 from utils_training.evaluation import Evaluator
 
+import matplotlib.pyplot as plt
+to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
+
 if __name__ == "__main__":
     # Argument parsing
     parser = argparse.ArgumentParser(description='CATs Training Script')
@@ -84,7 +87,7 @@ if __name__ == "__main__":
     download.download_dataset(args.datapath, args.benchmark)
     test_dataset = download.load_dataset(args.benchmark, args.datapath, args.thres, device, 'test', False, args_model.feature_size)
     test_dataloader = DataLoader(test_dataset,
-        batch_size=args.batch_size,
+        batch_size=1,
         num_workers=args.n_threads,
         shuffle=False)
 
@@ -106,22 +109,48 @@ if __name__ == "__main__":
     train_started = time.time()
 
     for total_iter, mini_batch in enumerate(test_dataloader) :
+        n_pts = mini_batch['n_pts']
         flow_gt = mini_batch['flow'].to(device)
         trg_img = mini_batch['trg_img'].to(device)
         src_img = mini_batch['src_img'].to(device)
+        tar_kps = mini_batch['trg_kps'].to(device)
+        src_kps = mini_batch['src_kps'].to(device)
 
+        # 
+        src_img_np = src_img[0].permute(1, 2, 0).numpy()    # [h, w, 3]
+        src_img_np = to8b(src_img_np)
+
+        src_kps = src_kps[0, :,  :n_pts].to(torch.int32)    # [2, 9]
+        for i in range(n_pts):
+            plt.scatter(src_kps[0, i], src_kps[1, i])
+
+        plt.imshow(src_img_np)
+        plt.axis('off')
+        src_img_kp = plt.gcf()
+        writer.add_image("src_img", src_img_kp, total_iter)
+        plt.close()
+
+        # 
+        tar_img_np = trg_img[0].permute(1, 2, 0).numpy()    # [h, w, 3]
+        tar_img_np = to8b(tar_img_np)
+
+        tar_kps = tar_kps[0, :,  :n_pts].to(torch.int32)    # [2, 9]
+        for i in range(n_pts):
+            plt.scatter(tar_kps[0, i], tar_kps[1, i])
+
+        plt.imshow(tar_img_np)
+        plt.axis('off')
+        tar_img_kp = plt.gcf()
+        writer.add_image("src_img", tar_img_kp, total_iter)
+        plt.close()
+
+        # 
         pred_flow = model(mini_batch['trg_img'].to(device),
                         mini_batch['src_img'].to(device))
         
         estimated_kps = flow2kps(mini_batch['trg_kps'].to(device), pred_flow, mini_batch['n_pts'].to(device))
 
-        writer.add_image("src_img",
-                torchvision.utils.make_grid(src_img, scale_each=False, normalize=True).cpu().numpy(), total_iter)
-        writer.add_image("trg_img",
-                torchvision.utils.make_grid(trg_img, scale_each=False, normalize=True).cpu().numpy(), total_iter)
-        writer.add_image("flow_gt",
-                torchvision.utils.make_grid(flow_gt, scale_each=False, normalize=False).cpu().numpy(), total_iter)
         writer.add_image("pred_flow",
                 torchvision.utils.make_grid(pred_flow, scale_each=False, normalize=False).cpu().numpy(), total_iter)
-
-
+        writer.add_image("estimated_kps",
+                torchvision.utils.make_grid(estimated_kps, scale_each=False, normalize=False).cpu().numpy(), total_iter)
