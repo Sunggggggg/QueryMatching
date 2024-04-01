@@ -7,8 +7,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
 from data import download
-from utils_training.utils import parse_list, log_args, boolean_string, flow2kps
+from utils_training.utils import log_args, boolean_string, flow2kps
 from models import QueryMatching
 from utils_training.evaluation import Evaluator
 
@@ -95,13 +97,15 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError()
     # create summary writer
+    summaries_dir = osp.join(args.pretrained, 'summaries')
+    writer = SummaryWriter(summaries_dir, flush_secs=10)
 
     model = nn.DataParallel(model)
     model = model.to(device)
 
     train_started = time.time()
 
-    for mini_batch in test_dataloader :
+    for total_iter, mini_batch in enumerate(test_dataloader) :
         flow_gt = mini_batch['flow'].to(device)
         trg_img = mini_batch['trg_img'].to(device)
         src_img = mini_batch['src_img'].to(device)
@@ -111,5 +115,13 @@ if __name__ == "__main__":
         
         estimated_kps = flow2kps(mini_batch['trg_kps'].to(device), pred_flow, mini_batch['n_pts'].to(device))
 
+        writer.add_image("src_img",
+                torchvision.utils.make_grid(src_img, scale_each=False, normalize=True).cpu().numpy(), total_iter)
+        writer.add_image("trg_img",
+                torchvision.utils.make_grid(trg_img, scale_each=False, normalize=True).cpu().numpy(), total_iter)
+        writer.add_image("flow_gt",
+                torchvision.utils.make_grid(flow_gt, scale_each=False, normalize=False).cpu().numpy(), total_iter)
+        writer.add_image("pred_flow",
+                torchvision.utils.make_grid(pred_flow, scale_each=False, normalize=False).cpu().numpy(), total_iter)
 
-        break
+
