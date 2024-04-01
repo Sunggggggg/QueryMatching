@@ -410,7 +410,7 @@ class QueryMatching(nn.Module):
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
 
         # Fuse Block
-        contr_loss = self.loss_func(query1, query2)
+        contr_loss = torch.stack([self.loss_func(query1[b], query2[b]) for b in range(B)]).mean()
         src_feat, tgt_feat = self.l2norm(src_feats[0]), self.l2norm(tgt_feats[0])
         h, w = src_feat.shape[-2:]
         src_feat = src_feat.flatten(2) # [B, e, hw]
