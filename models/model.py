@@ -208,8 +208,8 @@ class QueryMatching(nn.Module):
                  hyperpixel_ids=[0,8,20,21,26,28,29,30], 
                  feat_dim=256, 
                  freeze=True,
-                 depth=4,
-                 num_queries=64,
+                 depth=3,
+                 num_queries=16,
                  feature_size=16,
                  ):
         super(QueryMatching, self).__init__()
@@ -270,6 +270,14 @@ class QueryMatching(nn.Module):
         return exp_x / exp_x_sum
 
     def soft_argmax(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
+        B = src_heatmap.shape[0]
+        src_heatmap = self.softmax_with_temperature(src_heatmap, beta=beta) #[B, Q, hw]
+        src_heatmap = src_heatmap.reshape(B, -1, h, w)
+
+        grid_x = src_heatmap.sum(dim=2, keepdim=False) # [B, Q, w]
+
+
+    def heatmap2flow(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
         r'''
         src_heatmap, tgt_heatmap [B, Q, hw]
         '''
@@ -344,7 +352,7 @@ class QueryMatching(nn.Module):
         src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
 
-        flow = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
+        flow = self.heatmap2flow(src_heatmap, tgt_heatmap, h, w)
 
         return flow
 
