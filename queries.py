@@ -151,6 +151,6 @@ if __name__ == "__main__":
         estimated_kps = flow2kps(mini_batch['trg_kps'].to(device), pred_flow, mini_batch['n_pts'].to(device))
 
         writer.add_image("pred_flow",
-                torchvision.utils.make_grid(pred_flow, scale_each=False, normalize=False).cpu().numpy(), total_iter)
+                torchvision.utils.make_grid(pred_flow, scale_each=False, normalize=False).detach().cpu().numpy(), total_iter)
         writer.add_image("estimated_kps",
-                torchvision.utils.make_grid(estimated_kps, scale_each=False, normalize=False).cpu().numpy(), total_iter)
+                torchvision.utils.make_grid(estimated_kps, scale_each=False, normalize=False).detach().cpu().numpy(), total_iter)
