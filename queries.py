@@ -127,7 +127,7 @@ if __name__ == "__main__":
         plt.imshow(src_img_np)
         plt.axis('off')
         src_img_kp = plt.gcf()
-        writer.add_image("src_img", src_img_kp, total_iter)
+        writer.add_figure("src_img", src_img_kp, total_iter)
         plt.close()
 
         # 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         plt.imshow(tar_img_np)
         plt.axis('off')
         tar_img_kp = plt.gcf()
-        writer.add_image("src_img", tar_img_kp, total_iter)
+        writer.add_figure("trg_img", tar_img_kp, total_iter)
         plt.close()
 
         # 
