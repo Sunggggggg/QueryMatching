@@ -251,7 +251,7 @@ class QueryMatching(nn.Module):
             self.query_aggregation.append(QueryAggregation(model_dim=feat_dim, num_queries=num_queries))
 
         #####################################
-        # Norm
+        # Scalar
         #####################################
         self.l2norm = FeatureL2Norm()
         self.x_normal = np.linspace(-1,1,self.feature_size)
@@ -260,7 +260,12 @@ class QueryMatching(nn.Module):
         self.y_normal = nn.Parameter(torch.tensor(self.y_normal, dtype=torch.float, requires_grad=False))
         self.flow_map = np.zeros((2, self.feature_size, self.feature_size))
         self.flow_map = nn.Parameter(torch.tensor(self.flow_map, dtype=torch.float, requires_grad=False))
-            
+        
+        #####################################
+        # Scalar
+        #####################################
+        
+
     def softmax_with_temperature(self, x, beta, d = 1):
         r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)'''
         M, _ = x.max(dim=d, keepdim=True)
