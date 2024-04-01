@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 import torchvision
 from data import download
 from utils_training.utils import log_args, boolean_string, flow2kps
