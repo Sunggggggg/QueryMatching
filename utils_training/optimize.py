@@ -48,7 +48,7 @@ def train_epoch(net,
         
         Loss = EPE(pred_flow, flow_gt) 
         Loss = contr_loss + Loss
-        Loss.backward()
+        Loss.mean().backward()
         optimizer.step()
 
         running_total_loss += Loss.item()
