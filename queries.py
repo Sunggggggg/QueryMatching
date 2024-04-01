@@ -117,7 +117,7 @@ if __name__ == "__main__":
         src_kps = mini_batch['src_kps'].to(device)
 
         # 
-        src_img_np = src_img[0].permute(1, 2, 0).numpy()    # [h, w, 3]
+        src_img_np = src_img[0].permute(1, 2, 0).detach().numpy()    # [h, w, 3]
         src_img_np = to8b(src_img_np)
 
         src_kps = src_kps[0, :,  :n_pts].to(torch.int32)    # [2, 9]
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         plt.close()
 
         # 
-        tar_img_np = trg_img[0].permute(1, 2, 0).numpy()    # [h, w, 3]
+        tar_img_np = trg_img[0].permute(1, 2, 0).detach().numpy()    # [h, w, 3]
         tar_img_np = to8b(tar_img_np)
 
         tar_kps = tar_kps[0, :,  :n_pts].to(torch.int32)    # [2, 9]
