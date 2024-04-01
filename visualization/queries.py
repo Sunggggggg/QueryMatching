@@ -6,11 +6,11 @@ import pickle
 import numpy as np
 import torch
 import torch.nn as nn
-from ..data import download
 from torch.utils.data import DataLoader
-from utils_training.utils import parse_list, log_args, boolean_string, flow2kps
-from models import QueryMatching
-from utils_training.evaluation import Evaluator
+from ..data import download
+from ..utils_training.utils import parse_list, log_args, boolean_string, flow2kps
+from ..models import QueryMatching
+from ..utils_training.evaluation import Evaluator
 
 if __name__ == "__main__":
     # Argument parsing
