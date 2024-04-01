@@ -264,7 +264,7 @@ class QueryMatching(nn.Module):
         #####################################
         # Scalar
         #####################################
-        
+
 
     def softmax_with_temperature(self, x, beta, d = 1):
         r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)'''
@@ -275,7 +275,7 @@ class QueryMatching(nn.Module):
         return exp_x / exp_x_sum
 
     def soft_argmax(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
-        B, Q, hw = src_heatmap.shape[0]
+        B, Q, hw = src_heatmap.shape
         src_heatmap = self.softmax_with_temperature(src_heatmap, beta=beta) #[B, Q, hw]
 
         # 
