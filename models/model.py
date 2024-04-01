@@ -5,6 +5,45 @@ from .backbone import FeatureExtractionHyperPixel, SimpleResnet
 from .pos_encoding import PositionEmbeddingSine
 from .mod import FeatureL2Norm, unnormalise_and_convert_mapping_to_flow
 
+class SimCLR_Loss(nn.Module):
+    def __init__(self, batch_size, temperature):
+        super().__init__()
+        self.batch_size = batch_size
+        self.temperature = temperature
+
+        self.mask = self.mask_correlated_samples(batch_size)
+        self.criterion = nn.CrossEntropyLoss(reduction="sum")
+        self.similarity_f = nn.CosineSimilarity(dim=2)
+
+    def mask_correlated_samples(self, batch_size):
+        N = 2 * batch_size
+        mask = torch.ones((N, N), dtype=bool)
+        mask = mask.fill_diagonal_(0)
+        
+        for i in range(batch_size):
+            mask[i, batch_size + i] = 0
+            mask[batch_size + i, i] = 0
+        return mask
+
+    def forward(self, z_i, z_j):
+        N = 2 * self.batch_size
+        z = torch.cat((z_i, z_j), dim=0)
+        sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
+
+        sim_i_j = torch.diag(sim, self.batch_size)
+        sim_j_i = torch.diag(sim, -self.batch_size)
+        
+        positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).reshape(N, 1)
+        negative_samples = sim[self.mask].reshape(N, -1)
+        
+        labels = torch.from_numpy(np.array([0]*N)).reshape(-1).to(positive_samples.device).long()
+        
+        logits = torch.cat((positive_samples, negative_samples), dim=1)
+        loss = self.criterion(logits, labels)
+        loss /= N
+        
+        return loss
+
 class QueryActivation(nn.Module):
     def __init__(self, model_dim, nhead=8, dropout=0.0) :
         super(QueryActivation, self).__init__()
@@ -262,9 +301,9 @@ class QueryMatching(nn.Module):
         self.flow_map = nn.Parameter(torch.tensor(self.flow_map, dtype=torch.float, requires_grad=False))
         
         #####################################
-        # Scalar
+        # Loss
         #####################################
-
+        self.loss_func = SimCLR_Loss(self.num_queries, 0.5)
 
     def softmax_with_temperature(self, x, beta, d = 1):
         r'''SFNet: Learning Object-aware Semantic Flow (Lee et al.)'''
@@ -371,6 +410,7 @@ class QueryMatching(nn.Module):
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
 
         # Fuse Block
+        contr_loss = self.loss_func(query1, query2)
         src_feat, tgt_feat = self.l2norm(src_feats[0]), self.l2norm(tgt_feats[0])
         h, w = src_feat.shape[-2:]
         src_feat = src_feat.flatten(2) # [B, e, hw]
@@ -382,7 +422,7 @@ class QueryMatching(nn.Module):
         flow = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
         flow = unnormalise_and_convert_mapping_to_flow(flow)
         
-        return flow
+        return flow, contr_loss
 
 if __name__ == "__main__" :
     x = torch.rand((1, 3, 256, 256))

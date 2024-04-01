@@ -43,10 +43,11 @@ def train_epoch(net,
         optimizer.zero_grad()
         flow_gt = mini_batch['flow'].to(device)
 
-        pred_flow = net(mini_batch['trg_img'].to(device),
+        pred_flow, contr_loss = net(mini_batch['trg_img'].to(device),
                          mini_batch['src_img'].to(device))
         
         Loss = EPE(pred_flow, flow_gt) 
+        Loss = contr_loss + Loss
         Loss.backward()
         optimizer.step()
 
