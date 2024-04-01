@@ -71,8 +71,6 @@ if __name__ == "__main__":
     # Queries
     parser.add_argument('--num_queries', type=int, default=32)
     parser.add_argument('--feat_dim', type=int, default=256)
-    
-
 
     # Seed
     args = parser.parse_args()
