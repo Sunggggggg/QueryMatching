@@ -110,11 +110,11 @@ if __name__ == "__main__":
 
     for total_iter, mini_batch in enumerate(test_dataloader) :
         n_pts = mini_batch['n_pts']
-        flow_gt = mini_batch['flow'].to(device)
-        trg_img = mini_batch['trg_img'].to(device)
-        src_img = mini_batch['src_img'].to(device)
-        tar_kps = mini_batch['trg_kps'].to(device)
-        src_kps = mini_batch['src_kps'].to(device)
+        flow_gt = mini_batch['flow']
+        trg_img = mini_batch['trg_img']
+        src_img = mini_batch['src_img']
+        tar_kps = mini_batch['trg_kps']
+        src_kps = mini_batch['src_kps']
 
         # 
         src_img_np = src_img[0].permute(1, 2, 0).detach().cpu().numpy()    # [h, w, 3]
