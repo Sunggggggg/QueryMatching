@@ -352,8 +352,8 @@ class QueryMatching(nn.Module):
         src_heatmap = query1 @ src_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
 
+        #flow = self.heatmap2flow(src_heatmap, tgt_heatmap, h, w)
         flow = self.heatmap2flow(src_heatmap, tgt_heatmap, h, w)
-
         return flow
 
 if __name__ == "__main__" :

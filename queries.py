@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     if args.pretrained:
         checkpoint = torch.load(osp.join(args.pretrained, 'model_best.pth'))
-        model.load_state_dict(checkpoint['state_dict'])
+        model.load_state_dict(checkpoint['state_dict'], strict=False)
     else:
         raise NotImplementedError()
     # create summary writer
@@ -148,9 +148,14 @@ if __name__ == "__main__":
         pred_flow = model(mini_batch['trg_img'].to(device),
                         mini_batch['src_img'].to(device))
         
-        estimated_kps = flow2kps(mini_batch['trg_kps'].to(device), pred_flow, mini_batch['n_pts'].to(device))
+        n = torch.ones_like(mini_batch['n_pts']) * 40
+        estimated_kps = flow2kps(mini_batch['trg_kps'].to(device), pred_flow, n)   # [B, 2, 40]
+        src_kps = estimated_kps[0, :,  :].to(torch.int32).detach().cpu().numpy()    # [2, 40]
+        for i in range(estimated_kps.shape[-1]):
+            plt.scatter(src_kps[0, i], src_kps[1, i])
+        plt.imshow(src_img_np)
+        plt.axis('off')
+        src_img_kp = plt.gcf()
+        writer.add_figure("src_pred_keyponts_img", src_img_kp, total_iter)
+        plt.close()
 
-        writer.add_image("pred_flow",
-                torchvision.utils.make_grid(pred_flow, scale_each=False, normalize=False).detach().cpu().numpy(), total_iter)
-        writer.add_image("estimated_kps",
-                torchvision.utils.make_grid(estimated_kps, scale_each=False, normalize=False).detach().cpu().numpy(), total_iter)
