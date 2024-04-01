@@ -270,12 +270,33 @@ class QueryMatching(nn.Module):
         return exp_x / exp_x_sum
 
     def soft_argmax(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
-        B = src_heatmap.shape[0]
+        B, Q, hw = src_heatmap.shape[0]
         src_heatmap = self.softmax_with_temperature(src_heatmap, beta=beta) #[B, Q, hw]
-        src_heatmap = src_heatmap.reshape(B, -1, h, w)
 
-        grid_x = src_heatmap.sum(dim=2, keepdim=False) # [B, Q, w]
+        # 
+        src_heatmap = src_heatmap.reshape(B, Q, h, w)
 
+        src_grid_x = src_heatmap.sum(dim=2, keepdim=False)      # [B, Q, w]
+        x_normal = self.x_normal.view(1, 1, w)              # [w]
+        src_grid_x = (x_normal*src_grid_x).sum(dim=-1, keepdim=False)# [B, Q]
+
+        src_grid_y = src_heatmap.sum(dim=3, keepdim=False)      # [B, Q, h]
+        y_normal = self.y_normal.view(1, 1, h)              # [h]
+        src_grid_y = (y_normal*src_grid_y).sum(dim=-1, keepdim=False)# [B, Q]
+
+        _, tgt_max_idx = torch.max(tgt_heatmap, dim=-1)   # [B, Q]
+        tgt_max_row = tgt_max_idx // h
+        tgt_max_col = tgt_max_idx % h    # [B, Q]
+        
+        flow_map = self.flow_map.repeat(B, 1, 1, 1)   # [B, 2, h, w]
+        for b in range(B):
+            grid_x, grid_y = src_grid_x[b], src_grid_y[b]   # [Q]
+            tgt_row, tgt_col = tgt_max_row[b], tgt_max_col[b]   # [Q]
+            for sr, sc, tr, tc in zip(grid_x, grid_y, tgt_row, tgt_col):
+                flow_map[b, 0, tr, tc] = sr
+                flow_map[b, 1, tr, tc] = sc
+
+        return flow_map
 
     def heatmap2flow(self, src_heatmap, tgt_heatmap, h, w, beta=0.02):
         r'''
@@ -345,7 +366,7 @@ class QueryMatching(nn.Module):
                 query1, query2 = self.query_aggregation[level](query1, query2, query1_pos, query2_pos, cost_vol_pos)
 
         # Fuse Block
-        src_feat, tgt_feat = src_feats[-1], tgt_feats[-1]
+        src_feat, tgt_feat = self.l2norm(src_feats[-1]), self.l2norm(tgt_feats[-1])
         h, w = src_feat.shape[-2:]
         src_feat = src_feat.flatten(2) # [B, e, hw]
         tgt_feat = tgt_feat.flatten(2)
@@ -353,7 +374,9 @@ class QueryMatching(nn.Module):
         tgt_heatmap = query2 @ tgt_feat # [B, Q, e][B, e, hw]=[B, Q, hw]
 
         #flow = self.heatmap2flow(src_heatmap, tgt_heatmap, h, w)
-        flow = self.heatmap2flow(src_heatmap, tgt_heatmap, h, w)
+        flow = self.soft_argmax(src_heatmap, tgt_heatmap, h, w)
+        flow = unnormalise_and_convert_mapping_to_flow(flow)
+        
         return flow
 
 if __name__ == "__main__" :
