@@ -72,7 +72,7 @@ def validate_epoch(net,
         pck_array = []
         for i, mini_batch in pbar:
             flow_gt = mini_batch['flow'].to(device)
-            pred_flow = net(mini_batch['trg_img'].to(device),
+            pred_flow, contr_loss = net(mini_batch['trg_img'].to(device),
                             mini_batch['src_img'].to(device))
 
             estimated_kps = flow2kps(mini_batch['trg_kps'].to(device), pred_flow, mini_batch['n_pts'].to(device))
