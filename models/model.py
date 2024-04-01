@@ -208,7 +208,7 @@ class QueryMatching(nn.Module):
                  hyperpixel_ids=[0,8,20,21,26,28,29,30], 
                  feat_dim=256, 
                  freeze=True,
-                 depth=3,
+                 depth=4,
                  num_queries=16,
                  feature_size=16,
                  ):
